@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { createRef, useEffect, useRef, useState } from "react"
 import {
   CodeEditor,
   FileExplorer,
@@ -12,6 +12,8 @@ import {
 import { IFiles } from "smooshpack"
 import "react-smooshpack/src/styles/index.css"
 import { fetchProjectFromGitHub } from "./util/githubFetch"
+import DevTools from "./devtools/devtools"
+import babel from "@babel/core"
 
 const tryFiles = {
   "/src/index.tsx": {
@@ -84,13 +86,59 @@ function getTranspiledCode(sandpack: SandpackContext) {
     : null
 }
 
+// function loadBabel(iframe:any, scriptSource:any) {
+//   fetch(scriptSource)
+//     .then(response => response.text())
+//     .then(input => {
+//       const { contentDocument } = iframe;
+
+//       if (contentDocument == null) {
+//         // We unmounted in the middle of the sequence.
+//         return;
+//       }
+
+//       // eslint-disable-next-line no-undef
+//       const { code } = babel.transform(input, { presets: ['es2015', 'react'] });
+
+//       const script = contentDocument.createElement('script');
+//       script.textContent = code;
+
+//       contentDocument.head.appendChild(script);
+//     });
+// }
+
+function loadScript(iframe:any, scriptSource:any, onLoadFn:any) {
+  const { contentDocument } = iframe;
+
+  const script = contentDocument.createElement('script');
+  script.addEventListener('load', onLoadFn);
+  script.src = scriptSource;
+
+  contentDocument.head.appendChild(script);
+}
+
+
 const App = () => {
   const [files, setFiles] = useState<IFiles>()
+const defaultTabID = 'components'
+const iframeRef = useRef(null);
+const [tabID, setTabID] = useState(defaultTabID);
 
   useEffect(() => {
     fetchProjectFromGitHub()
       .then(data => setFiles(data))
       .catch(err => console.log(err))
+        const iframe = iframeRef.current;
+        //@ts-ignore
+        iframe.addEventListener('load', () => {
+          // Load React, ReactDOM, and example app after hook has been installed.
+          loadScript(
+            iframe,
+            'https://unpkg.com/react@0.0.0-a1dbb852c/umd/react.development.js',
+            () =>
+              {}
+          );
+        });
   }, [])
 
   return (
@@ -126,6 +174,7 @@ const App = () => {
             <CodeEditor customStyle={{ padding: "1rem" }} />
             <Preview customStyle={{ padding: "1rem" }} />
             <TranspiledCodeView />
+            <DevTools tabID={tabID} iframeRef={iframeRef} />
           </div>
         </SandpackProvider>
       ) : (
